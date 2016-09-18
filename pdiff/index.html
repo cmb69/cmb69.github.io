@@ -1,0 +1,274 @@
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>libgd test suite: comparing images with error tolerance</title>
+        <style>
+            img {border: 1px solid black; padding: 2px}
+        </style>
+    </head>
+    <body>
+        <h1>libgd test suite: comparing images with error tolerance</h1>
+        <p>
+            Unsurprisingly, there's often the need to compare images for
+            equality in libgd's test suite, and the libgd test framework offers
+            some helpers to make that very easy. However, there's sometimes the
+            need to cater to some minor differences in the images caused by
+            limited precision and rounding issues, so in addition to exact image
+            comparision we need also helpers which are tolerant with regard to
+            minor differences.
+        </p>
+        <p>
+            Not long ago, <a
+            href="https://github.com/libgd/libgd/issues/216">Pierre
+            suggested</a> to adopt <a
+            href="http://pdiff.sourceforge.net/">pdiff</a> for that purpose, so
+            I had a closer look at this tool and potential alternatives.
+        </p>
+        <p>
+            Searching the web for "image similarity" and related keywords showed
+            that there are a lot of tools and algorithms available for this
+            purpose. It seems, though, that most of these are per se unsuitable
+            for libgd's testing purposes, but rather are meant for finding
+            similar images in a large collection, thereby ignoring differences
+            which are inacceptable for our purposes, such as different image
+            sizes/proportions, different scaling, displacement etc. We can
+            reject these tools/algorithms right away.
+        </p>
+        <p>
+            A very simple algorithm, that might be suitable for libgd's testing
+            purposes is based on the Euclidean distance of the color and alpha
+            channels of pixels. This is calculated as the square root of the sum
+            of the squares of the individual channel differences, which can be
+            compared against a given threshold. Consider, for instance, two
+            pixels with <code>rgba(127, 127, 127, 63)</code> and <code>rgba(128,
+            128, 128, 64)</code>. The Euclidean distance is
+            <code>sqrt(1<sup>2</sup> + 1<sup>2</sup> + 1<sup>2</sup> +
+            1<sup>2</sup>) = sqrt(4) = 2</code>. <a
+            href="#ediff.php">ediff.php</a> which employs this algorithm can be
+            found in the appendix.
+        </p>
+        <h2 id="comparison">Comparing pdiff and ediff</h2>
+        <p>
+            To be able to practically compare both tools we need suitable image
+            samples. We'll consider the following cases:
+        </p>
+        <ul>
+            <li>Single-colored images with some errors</li>
+            <li>Simple pixel displacement</li>
+            <li>Differences due to lossy encoding</li>
+            <li>Differences due to broken floating point calculations</li>
+        </ul>
+        <p>
+            We use pdiff with the default parameters using a
+            <code>threshold</code> of 0. Of the other parameters most likely
+            only <code>colorfactor</code> and <code>downsample</code> would be
+            relevant, but we ignore these as the same techniques could be
+            applied to ediff as well (and probably neither is desirable). We
+            compare the results to ediff with threshold 0, 2 and 16. The
+            resulting numbers are the number of pixels which are considered
+            different and their percentage of all pixels of the image.
+        </p>
+        <h3 id="plain">Single-colored images with some errors</h3>
+        <p>
+            We create our samples dynamically, with <a href="#fuzzer.php">fuzzer.php</a>
+            which can be found in the appendix. The resulting images are:
+            <p>
+                <img src="plain0.png" title="plain0">
+                <img src="plain1.png" title="plain1">
+                <img src="plain2.png" title="plain2">
+                <img src="plain4.png" title="plain4">
+                <img src="plain8.png" title="plain8">
+                <img src="plain16.png" title="plain16">
+            </p>
+            <table border="1">
+                <tr>
+                    <th></th><th>pdiff</th><th>ediff 0</th><th>ediff 2</th><th>ediff 16</th>
+                </tr>
+                <tr>
+                    <td>plain1</td><td>0 (0%)</td><td>8619 (86%)</td><td>0 (0%)</td><td>0 (0%)</td>
+                </tr>
+                <tr>
+                    <td>plain2</td><td>100 (1%)</td><td>9684 (97%)</td><td>0 (0%)</td><td>0 (0%)</td>
+                </tr>
+                <tr>
+                    <td>plain4</td><td>3036 (30%)</td><td>9961 (100%)</td><td>8693 (87%)</td><td>0 (0%)</td>
+                </tr>
+                <tr>
+                    <td>plain8</td><td>7055 (71%)</td><td>9994 (100%)</td><td>9827 (98%)</td><td>0 (0%)</td>
+                </tr>
+                <tr>
+                    <td>plain16</td><td>9127 (91%)</td><td>10000 (100%)</td><td>9988 (100%)</td><td>0 (0%)</td>
+                </tr>
+            </table>
+        </p>
+        <h3 id="displacement">Simple pixel displacement</h3>
+        <p>
+            We're comparing the following images with a simple vertical line.
+            Both appear identical, but the line is displaced by a single pixel.
+        </p>
+        <p>
+            <img src="line1.png" title="line1">
+            <img src="line2.png" title="line2">
+        </p>
+        <table border="1">
+            <tr>
+                <th>pdiff</th><th>ediff 0</th><th>ediff 2</th><th>ediff 16</th>
+            </tr>
+            <tr>
+                <td>200 (2%)</td><td>200 (2%)</td><td>200 (2%)</td><td>200 (2%)</td>
+            </tr>
+        </table>
+        <h3 id="lossy">Differences due to lossy encoding</h3>
+        <p>
+            We take PNG images as input, convert to JPEG respectively WebP,
+            re-import and convert to PNG again. We compare the following pairs
+            of images:
+        </p>
+        <p>
+            <img src="bali1.png" title="bali1">
+            <img src="bali2.png" title="bali2">
+            <img src="drawing1.png" title="drawing1">
+            <img src="drawing2.png" title="drawing2">
+        </p>
+        <table border="1">
+            <tr>
+                <th></th><th>pdiff</th><th>ediff 0</th><th>ediff 2</th><th>ediff 16</th>
+            </tr>
+            <tr>
+                <td>bali</td><td>22288 (45%)</td><td>48961 (100%)</td><td>47468 (97%)</td><td>14681 (30%)</td>
+            </tr>
+            <tr>
+                <td>drawing</td><td>1260 (22%)</td><td>3745 (67%)</td><td>2421 (43%)</td><td>880 (16%)</td>
+            </tr>
+        </table>
+        <h3 id="broken">Differences due to broken floating point calculations</h3>
+        <p>
+            We're comparing an image of the libgd test suite against an image <a
+            href="https://github.com/libgd/libgd/issues/242">produced by a an
+            old floating point unit</a>.
+        </p>
+        <p>
+            <img src="remi1.png" title="remi1">
+            <img src="remi2.png" title="remi2">
+        </p>
+        <table border="1">
+            <tr>
+                <th></th><th>pdiff</th><th>ediff 0</th><th>ediff 2</th><th>ediff 16</th>
+            </tr>
+            <tr>
+                <td>bali</td><td>414 (1%)</td><td>14143 (46%)</td><td>6729 (22%)</td><td>611 (2%)</td>
+            </tr>
+        </table>
+        <h2 id="conclusion">Conclusion</h2>
+        <p>
+            As can be seen from the test results, pdiff does a good job
+            recognizing similar images without providing false positives (what
+            can be concluded from the <a href="#displacement">displacement
+            test</a>). Due to its advanced algorithm it delivers better results
+            than the simple ediff with a reasonable treshold of 2 with regard to
+            <a href="#lossy">lossy compression</a> and <a href="#broken">broken
+            floating point calculations</a>. It also delivers good results for
+            <a href="#plain">slight precision/rounding errors</a>.
+        </p>
+        <p>
+            However, it appears that pdiff is still not good enough to test the
+            results of lossy encodings; we hardly can ignore 22% or even 45% of
+            pixels that would change in an automated test – actually the image
+            could look <em>very</em> different. With regard to limited
+            precision/ rounding issues, ediff does a comparably good job (if not
+            better). Furthermore, it turned out that even the PHP implementation
+            of ediff is somewhat faster than pdiff – not too important for the
+            test suite, but still.
+        </p>
+        <p>
+            Therefore I don't think it makes sense to add pdiff to the libgd
+            test framework, particularly with regard to build, maintainance and
+            license issues. ediff doesn't have these issues and also does a decent
+            job. Unfortunately, neither tool solves all issues …
+        </p>
+        <h2 id="appendix">Appendix</h2>
+        <h3 id="ediff.php">ediff.php</h3>
+        <p>
+            The following PHP script verifies the similarity of PNG images by
+            comparing the Euclidean pixel distance against a threshold
+            (tolerance), and reports the number of pixels that exceed this
+            threshold. Note that the script also can test for exact image
+            identity, if <code>0</code> is passed as threshold.
+        </p>
+        <pre>
+&lt;?php
+
+if ($argc !== 4) {
+    die("usage: $argv[0] &lt;tolerance&gt; &lt;file1&gt; &lt;file2&gt;\n");
+}
+$tolerance = $argv[1];
+$filename1 = $argv[2];
+$filename2 = $argv[3];
+
+$im1 = imagecreatefrompng($filename1);
+$im2 = imagecreatefrompng($filename2);
+
+assert(imagesx($im1) === imagesx($im2));
+assert(imagesy($im1) === imagesy($im2));
+
+$changed = 0;
+for ($i = imagesx($im1) - 1; $i &gt;= 0; $i--) {
+    for ($j = imagesy($im1) - 1; $j &gt;= 0; $j--) {
+        $c1 = imagecolorat($im1, $i, $j);
+        $c2 = imagecolorat($im2, $i, $j);
+        if ($c1 === $c2) continue;
+        $c1 = imagecolorsforindex($im1, $c1);
+        $c2 = imagecolorsforindex($im2, $c2);
+        $d = 2 * ($c1['alpha'] - $c2['alpha']);
+        $sum = $d * $d;
+        $d = $c1['red'] - $c2['red'];
+        $sum += $d * $d;
+        $d = $c1['green'] - $c2['green'];
+        $sum += $d * $d;
+        $d = $c1['blue'] - $c2['blue'];
+        $sum += $d * $d;
+        if (sqrt($sum) &gt; $tolerance) {
+            $changed++;
+        }
+    }
+}
+
+echo "$changed pixels are different\n";
+        </pre>
+        <h3 id="fuzzer.php">fuzzer.php</h3>
+        <p>
+            The following PHP script creates single-colored images with a given
+            fault tolerance.
+        </p>
+        <pre>
+&lt;?php
+
+if ($argc !== 2) {
+    die("usage: $argv[0] &lt;tolerance>\n");
+}
+$tolerance = $argv[1];
+
+$im = imagecreatetruecolor(100,100);
+
+for ($i = 0; $i &lt; 100; $i++) {
+    for ($j = 0; $j &lt; 100; $j++) {
+        imagesetpixel($im, $i, $j, random_color($im));
+    }
+}
+
+imagepng($im, "plain$tolerance.png");
+
+function random_color($im)
+{
+    global $tolerance;
+    
+    do {
+        $r = mt_rand(127-$tolerance, 127+$tolerance);
+        $g = mt_rand(127-$tolerance, 127+$tolerance);
+        $b = mt_rand(127-$tolerance, 127+$tolerance);
+    } while (sqrt(($r-127)**2 + ($g-127)**2 + ($b-127)**2) > $tolerance);
+    return imagecolorallocate($im, $r, $g, $b);
+}
+        </pre>
+    </body>
+</html>
