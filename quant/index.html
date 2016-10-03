@@ -5,39 +5,41 @@
     </head>
     <body>
         <h1>libgd: Color Quantization and Dithering</h1>
-        <p><i>2016-09-27</i></p>
+        <p><i>2016-10-03</i></p>
         <p>
-            libgd currently offers four different color quantization methods, so
+            libgd currently offers three different color quantization methods, so
             I'd liked to compare these. As source I used the well-known "lena"
             and "mandrill" images, which were quantized down to eight colors to
             stress the differences between the methods.
         </p>
         <p>
-            <img src="lena.jpg" width="45%">
-            <img src="mandrill.jpg" width="45%">
+            It's important to note that these tests are not concerned with
+            transparency at all. Images with an alpha channel are likely to
+            yield rather different results, particularly because GD_QUANT_JQUANT
+            doesn't support true alpha transparency.
         </p>
         <h2 id="no-dithering">Without Dithering</h2>
         <p>
-            <img src="lena-0-0.png" width="45%" title="GD_QUANT_DEFAULT">
+            <img src="lena.jpg" width="45%" title="original">
             <img src="lena-1-0.png" width="45%" title="GD_QUANT_JQUANT">
             <img src="lena-2-0.png" width="45%" title="GD_QUANT_NEUQUANT">
             <img src="lena-3-0.png" width="45%" title="GD_QUANT_LIQ">
         </p>
         <p>
-            <img src="mandrill-0-0.png" width="45%" title="GD_QUANT_DEFAULT">
+            <img src="mandrill.jpg" width="45%" title="original">
             <img src="mandrill-1-0.png" width="45%" title="GD_QUANT_JQUANT">
             <img src="mandrill-2-0.png" width="45%" title="GD_QUANT_NEUQUANT">
             <img src="mandrill-3-0.png" width="45%" title="GD_QUANT_LIQ">
         </p>
         <h2 id="dithering">With Dithering</h2>
         <p>
-            <img src="lena-0-1.png" width="45%" title="GD_QUANT_DEFAULT">
+            <img src="lena.jpg" width="45%" title="original">
             <img src="lena-1-1.png" width="45%" title="GD_QUANT_JQUANT">
             <img src="lena-2-1.png" width="45%" title="GD_QUANT_NEUQUANT">
             <img src="lena-3-1.png" width="45%" title="GD_QUANT_LIQ">
         </p>
         <p>
-            <img src="mandrill-0-1.png" width="45%" title="GD_QUANT_DEFAULT">
+            <img src="mandrill.jpg" width="45%" title="original">
             <img src="mandrill-1-1.png" width="45%" title="GD_QUANT_JQUANT">
             <img src="mandrill-2-1.png" width="45%" title="GD_QUANT_NEUQUANT">
             <img src="mandrill-3-1.png" width="45%" title="GD_QUANT_LIQ">
@@ -47,21 +49,12 @@
             Obviously, all quantization methods try to find an optimal palette
             rather than using a "standard" palette, and all come to rather
             similar results. Well, GD_QUANT_JQUANT differs visually, and seems
-            to prefer paler or more bluish colors.
+            to prefer paler or more bluish colors. Regarding dithering, we
+            notice that GD_QUANT_NEUQUANT obviously doesn't dither at all.
         </p>
         <p>
-            With regard to the actual quantization most notably is that the
-            results of GD_QUANT_DEFAULT and GD_QUANT_LIQ are identical!
-        </p>
-        <p>
-            Regarding dithering, we notice that GD_QUANT_NEUQUANT obviously
-            doesn't dither at all, and that GD_QUANT_DEFAULT and GD_QUANT_LIQ
-            output is again identical! That's something to be more thoroughly
-            investigated.
-        </p>
-        <p>
-            All in all, the dithered results of the dithered
-            GD_QUANT_DEFAULT/GD_QUANT_LIQ appear to be most visually appealing.
+            All in all, the results of the dithered
+            GD_QUANT_LIQ appear to be most visually appealing.
             If no dithering is desired, GD_QUANT_NEUQUANT offers an interesting
             alternative.
         </p>
@@ -83,7 +76,7 @@ void test_to_palette(const char *name, int dither)
     int i;
     char path[256];
 
-    for (i = 0; i &lt; 4; i++) {
+    for (i = 1; i &lt; 4; i++) {
         sprintf(path, "%s.jpg", name);
         fp = fopen(path, "rb");
         im = gdImageCreateFromJpeg(fp);
